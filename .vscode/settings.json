@@ -1,0 +1,12 @@
+{
+	"python.analysis.extraPaths":[
+		"./",
+		"./utilCParse"
+	],
+	"python.pythonPath": ".venv\\Scripts\\python.exe",
+	"terminal.integrated.shellArgs.windows": [
+		"chcp",
+		"65001"
+	],
+	"editor.insertSpaces": false
+}
