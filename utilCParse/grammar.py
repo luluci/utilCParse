@@ -479,8 +479,7 @@ class grammar_def:
 	)
 	# (6.7.2.1) struct-declaration:
 	struct_declaration = (
-		pp.Empty().setParseAction(analyzer.struct_declare_member_begin)
-		+ specifier_qualifier_list.copy().setParseAction(analyzer.struct_declare_member_type)
+		specifier_qualifier_list.copy().setParseAction(analyzer.struct_declare_member_begin).addParseAction(analyzer.struct_declare_member_type)
 		+ struct_declarator_list
 		+ token.punctuator.semicolon
 		+ pp.Empty().setParseAction(analyzer.struct_declare_member_end)
@@ -506,12 +505,14 @@ class grammar_def:
 	)
 
 	# (6.7) declaration-specifiers:
+	"""
 	declaration_specifiers = pp.Each(
 		pp.Optional(storage_class_specifier)
 		& pp.Optional(type_specifier.copy().setParseAction(analyzer.declaration_type))
 		& pp.Optional(type_qualifier)
 		& pp.Optional(function_specifier)
 	)
+	"""
 	declaration_specifiers = (
 		pp.ZeroOrMore(
 			storage_class_specifier
