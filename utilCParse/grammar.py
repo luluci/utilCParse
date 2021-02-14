@@ -4,36 +4,15 @@ A.2.1 Expressions
 import enum
 import pyparsing as pp
 from . import token
+from . import analyzer as analyzer_mod
 
-
-
-class grammar_function:
-	class TAG(enum.Enum):
-		struct_finish = enum.auto()
-		TAG_SIZE = enum.auto()
-
-	def __init__(self) -> None:
-		self._cb_tbl = [None] * grammar_function.TAG.TAG_SIZE.value
-
-	def set_struct_finish(self, cb):
-		self._cb_tbl[grammar_function.TAG.struct_finish.value] = cb
-
-	def struct_finish(self, var):
-		cb = self._cb_tbl[grammar_function.TAG.struct_finish.value]
-		if cb is not None:
-			cb(var)
-
-
-grammar_fn = grammar_function()
-
-def parse_struct_member(var):
-	print(var)
+analyzer = analyzer_mod.analyzer
 
 # .setParseAction(parse_debug)
-def parse_debug(var):
-	print(var)
+# + pp.Empty().setParseAction(parse_debug)
+def parse_debug(loc, var):
+	print("debug:" + str(loc) + "," + str(var))
 
-grammar_fn.set_struct_finish(parse_struct_member)
 
 class grammar_def:
 
@@ -94,7 +73,7 @@ class grammar_def:
 	)
 	postfix_expression = pp.Forward()
 	postfix_expression <<= (
-		primary_expression + pp.ZeroOrMore(postfix_expression_4)
+		(primary_expression + pp.ZeroOrMore(postfix_expression_4))
 		| postfix_expression_5
 	)
 	# (6.5.3) unary-operator: one of
@@ -418,10 +397,10 @@ class grammar_def:
 
 	# (6.7) init-declarator:
 	init_declarator = (
-		declarator
+		declarator.copy().setParseAction(analyzer.global_var_name)
 		+ pp.Optional(
 			token.punctuator.simple_assign_op
-			+ initializer
+			+ initializer.copy().setParseAction(analyzer.global_var_init)
 		)
 	)
 	# (6.7) init-declarator-list:
@@ -435,7 +414,7 @@ class grammar_def:
 
 	# (6.7.1) storage-class-specifier:
 	storage_class_specifier = (
-		token.keyword.typedef_
+		token.keyword.typedef_.copy().setParseAction(analyzer.typedef_begin)
 		| token.keyword.extern_
 		| token.keyword.static_
 		| token.keyword.auto_
@@ -447,16 +426,21 @@ class grammar_def:
 	typedef_name = token.identifier
 
 	# (6.7.2) type-specifier:
-	type_specifier = (
-		token.keyword.void_
-		| token.keyword.char_
+	type_specifier_int_pre = (
+		token.keyword.signed_
+		| token.keyword.unsigned_
+	)
+	type_specifier_int = (
+		token.keyword.char_
 		| token.keyword.short_
 		| token.keyword.int_
-		| token.keyword.long_
+		| (token.keyword.long_ + pp.Optional(token.keyword.long_))
+	)
+	type_specifier = (
+		token.keyword.void_
+		| (pp.Optional(type_specifier_int_pre) + type_specifier_int)
 		| token.keyword.float_
 		| token.keyword.double_
-		| token.keyword.signed_
-		| token.keyword.unsigned_
 		| token.keyword._Bool_
 		| token.keyword._Complex_
 		| struct_or_union_specifier
@@ -473,15 +457,15 @@ class grammar_def:
 	)
 
 	# (6.7.2.1) struct-or-union:
-	struct_or_union = token.keyword.struct_ | token.keyword.union_
+	struct_or_union = (token.keyword.struct_ | token.keyword.union_).setParseAction(analyzer.struct_begin)
 
 	# (6.7.2.1) struct-declarator:
 	struct_declarator_1 = (
 		token.punctuator.colon
-		+ constant_expression
+		+ constant_expression.copy().setParseAction(analyzer.struct_declare_member_bit)
 	)
 	struct_declarator_2 = (
-		declarator
+		declarator.copy().setParseAction(analyzer.struct_declare_member_name)
 		+ pp.Optional(struct_declarator_1)
 	)
 	struct_declarator = (struct_declarator_1 | struct_declarator_2)
@@ -495,20 +479,22 @@ class grammar_def:
 	)
 	# (6.7.2.1) struct-declaration:
 	struct_declaration = (
-		specifier_qualifier_list
+		pp.Empty().setParseAction(analyzer.struct_declare_member_begin)
+		+ specifier_qualifier_list.copy().setParseAction(analyzer.struct_declare_member_type)
 		+ struct_declarator_list
 		+ token.punctuator.semicolon
+		+ pp.Empty().setParseAction(analyzer.struct_declare_member_end)
 	)
 	# (6.7.2.1) struct-declaration-list:
 	struct_declaration_list = pp.OneOrMore(struct_declaration)
 	# (6.7.2.1) struct-or-union-specifier:
 	struct_or_union_specifier_1 = (
-		token.punctuator.left_brace
+		token.punctuator.left_brace.copy().setParseAction(analyzer.struct_declare_begin)
 		+ struct_declaration_list
-		+ token.punctuator.right_brace
+		+ token.punctuator.right_brace.copy().setParseAction(analyzer.struct_declare_end)
 	)
 	struct_or_union_specifier_2 = (
-		token.identifier
+		token.identifier.copy().setParseAction(analyzer.struct_name)
 		+ pp.Optional(struct_or_union_specifier_1)
 	)
 	struct_or_union_specifier <<= pp.Group(
@@ -517,14 +503,27 @@ class grammar_def:
 			struct_or_union_specifier_1
 			| struct_or_union_specifier_2
 		)
-	).setParseAction(grammar_fn.struct_finish)
+	)
 
 	# (6.7) declaration-specifiers:
-	declaration_specifiers = (
+	declaration_specifiers = pp.Each(
 		pp.Optional(storage_class_specifier)
-		& pp.Optional(type_specifier)
+		& pp.Optional(type_specifier.copy().setParseAction(analyzer.declaration_type))
 		& pp.Optional(type_qualifier)
 		& pp.Optional(function_specifier)
+	)
+	declaration_specifiers = (
+		pp.ZeroOrMore(
+			storage_class_specifier
+			| type_qualifier
+			| function_specifier
+		)
+		+ type_specifier.copy().setParseAction(analyzer.declaration_type)
+		+ pp.ZeroOrMore(
+			storage_class_specifier
+			| type_qualifier
+			| function_specifier
+		)
 	)
 
 	# (6.7.2.2) enumerator:
@@ -563,6 +562,8 @@ class grammar_def:
 	)
 
 	# (6.7) declaration:
+	# 実質不使用
+	# グローバル宣言はdeclarationから始まらず、external-declarationから開始である点に注意
 	declaration = pp.Group(
 		declaration_specifiers
 		+ pp.Optional(init_declarator_list)
@@ -648,24 +649,33 @@ class grammar_def:
 	# (6.7) declaration:
 	#     declaration-specifiers init-declarator-listopt ;
 	# declarator移行をlookaheadでチェック
-	# 1) "declarator =", "declarator ,", "declarator ;" はdeclaration
+	# 1) "declarator =", "declarator ,", "declarator ;", ";" はdeclaration
 	external_declaration_lookahead_1 = pp.FollowedBy(
-		declarator
+		declaration_specifiers
 		+ (
-			token.punctuator.simple_assign_op
-			| token.punctuator.comma
+			(
+				declarator
+				+ (
+					token.punctuator.simple_assign_op
+					| token.punctuator.comma
+					| token.punctuator.semicolon
+				)
+			)
 			| token.punctuator.semicolon
 		)
 	)
 	external_declaration_1 = (
 		external_declaration_lookahead_1
-#		+ pp.Empty().setParseAction(parse_debug)
+		+ pp.Empty().setParseAction(analyzer.external_declaration_begin)
+		+ declaration_specifiers
 		+ pp.Optional(init_declarator_list)
 		+ token.punctuator.semicolon
+		+ pp.Empty().setParseAction(analyzer.external_declaration_end)
 	)
 	# 2) "declarator declaration", "declarator {" はfunction-definition
 	external_declaration_lookahead_2 = pp.FollowedBy(
-		declarator
+		declaration_specifiers
+		+ declarator
 		+ (
 			declaration
 			| token.punctuator.left_brace
@@ -673,16 +683,14 @@ class grammar_def:
 	)
 	external_declaration_2 = (
 		external_declaration_lookahead_2
+		+ declaration_specifiers
 		+ declarator
 		+ pp.Optional(declaration_list)
 		+ pp.nestedExpr("{", "}")
 	)
 	external_declaration = (
-		declaration_specifiers.setParseAction(parse_debug)
-		+ (
-			external_declaration_1
-			| external_declaration_2
-		)
+		external_declaration_1
+		| external_declaration_2
 	)
 	translation_unit = pp.OneOrMore(external_declaration)
 

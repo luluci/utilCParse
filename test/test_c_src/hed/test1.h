@@ -1,9 +1,11 @@
 #include <stdint.h>
 
+// hoge定義
 struct hoge {
-	int byte;
+	int byte;		// byte1
 };
 
+// bt_type定義
 struct bf_type {
 	uint16_t	b0    :1;			// 0bit目
 	uint16_t	b1_5  :5;			// 1～5bit目
@@ -25,3 +27,8 @@ struct bf_type {
 };
 
 typedef struct bf_type bf_t;
+
+/* bt変数1 */
+bf_t var1;		// bt変数1
+bt_t var2;		/* bt変数2 */
+const static unsigned char var3 = 0;

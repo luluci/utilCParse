@@ -17,8 +17,8 @@ print(ret)
 
 if True:
 	# file
-	path = pathlib.Path("./test/test_c_src/test1.c")
-#	path = pathlib.Path("./test/test_c_src/hed/test1.h")
+#	path = pathlib.Path("./test/test_c_src/test1.c")
+	path = pathlib.Path("./test/test_c_src/hed/test1.h")
 	# parser
 	parser = utilCParse.parser
 	#parser = utilCParse.grammar.grammar_def.expression[1,...]

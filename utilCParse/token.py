@@ -53,7 +53,7 @@ class identifier_def:
 	universal_character_name = (universal_character_name_u | universal_character_name_U)
 	identifier_nondigit = (nondigit | universal_character_name)
 # (6.4.2.1) identifier:
-identifier = pp.Combine(identifier_def.identifier_nondigit + pp.OneOrMore(identifier_def.identifier_nondigit | identifier_def.digit))
+identifier = pp.Combine(identifier_def.identifier_nondigit + pp.ZeroOrMore(identifier_def.identifier_nondigit | identifier_def.digit))
 
 # A.1.5 Constants
 class constant_def:
@@ -63,12 +63,12 @@ class constant_def:
 	octal_digit = pp.Char("01234567")
 	hexadecimal_digit = pp.Char(pp.hexnums)
 	# (6.4.4.1) decimal-constant:
-	decimal_constant = nonzero_digit + digit[1,...]
+	decimal_constant = nonzero_digit + digit.copy()[...]
 	# (6.4.4.1) octal-constant:
-	octal_constant = zero + octal_digit[1, ...]
+	octal_constant = zero + octal_digit.copy()[...]
 	# (6.4.4.1) hexadecimal-constant:
 	hexadecimal_prefix = pp.Word("0x") | pp.Word("0X")
-	hexadecimal_constant = hexadecimal_prefix + hexadecimal_digit[1, ...]
+	hexadecimal_constant = hexadecimal_prefix + hexadecimal_digit.copy()[1, ...]
 	# (6.4.4.1) integer-suffix:
 	unsigned_suffix = pp.Char("uU")
 	long_suffix = pp.Char("lL")
@@ -82,8 +82,8 @@ class constant_def:
 	enumeration_constant = identifier
 	# (6.4.4.4) character-constant:
 	simple_escape_sequence = pp.Char("\\") + pp.Char("\\'\"?abfnrtv")
-	octal_escape_sequence = pp.Char("\\") + octal_digit[1, ...]
-	hexadecimal_escape_sequence = pp.Word("\\x") + hexadecimal_digit[1, ...]
+	octal_escape_sequence = pp.Char("\\") + octal_digit.copy()[1, ...]
+	hexadecimal_escape_sequence = pp.Word("\\x") + hexadecimal_digit.copy()[1, ...]
 	escape_sequence = simple_escape_sequence | octal_escape_sequence | hexadecimal_escape_sequence | identifier_def.universal_character_name
 	c_char = pp.CharsNotIn("'\\\r\n") | escape_sequence
 	character_constant = pp.Optional(pp.Char("L")) + pp.Char("'") + c_char[1,...] + pp.Char("'")

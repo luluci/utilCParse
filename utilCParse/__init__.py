@@ -3,13 +3,7 @@ from . import token
 from . import grammar
 from . import grammar_comment
 from . import grammar_pp
-
-def comment_match(var):
-	print(var)
-
-
-def decl_match(var):
-	print(var)
+from . import analyzer
 
 parser = pp.OneOrMore(
 	grammar.parser
@@ -20,6 +14,7 @@ parser = pp.OneOrMore(
 parser.ignore(
 	pp.Group(
 		grammar_comment.single_line_comment
-		| pp.cStyleComment
-	).setParseAction(comment_match)
+#		| pp.cStyleComment
+		| grammar_comment.multi_line_comment
+	).setParseAction(analyzer.analyzer.comment)
 )
