@@ -16,5 +16,5 @@ parser.ignore(
 		grammar_comment.single_line_comment
 #		| pp.cStyleComment
 		| grammar_comment.multi_line_comment
-	).setParseAction(analyzer.analyzer.comment)
+	).setParseAction(analyzer.ev_hdler.comment)
 )

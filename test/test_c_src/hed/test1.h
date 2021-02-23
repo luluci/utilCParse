@@ -1,8 +1,8 @@
 #include <stdint.h>
 
 // 基本型
-unsigned int u16_var = 0;
-uint32_t *u32p_unspe_var = 0;
+unsigned int u16_var, u16_var_2 = 0;				/* uint16変数1,2 */
+uint32_t **u32p_unspe_var = 0;
 __near uint32_t *u32p_near_var = 0;
 __far uint32_t *u32p_far_var = 0;
 static signed int i16_static = 1;
