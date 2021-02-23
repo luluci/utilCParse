@@ -4,6 +4,7 @@ A.2.1 Expressions
 import enum
 import pyparsing as pp
 from . import token
+from . import grammar_comment
 from . import analyzer as analyzer_mod
 
 ev_hdler = analyzer_mod.ev_hdler
@@ -685,11 +686,17 @@ class grammar_def:
 		)
 	)
 	external_declaration_1 = (
-		external_declaration_lookahead_1
-		+ pp.Empty().setParseAction(ev_hdler.external_declaration_begin)
-		+ declaration_specifiers
-		+ pp.Optional(init_declarator_list)
-		+ token.punctuator.semicolon
+		external_declaration_lookahead_1.ignore(grammar_comment.comment_parser)
+		+ (
+			pp.Empty().setParseAction(ev_hdler.external_declaration_begin)
+			+ declaration_specifiers
+			+ pp.Optional(init_declarator_list)
+		).ignore(grammar_comment.comment_parser)
+		+ (
+			token.punctuator.semicolon
+#			+ pp.Optional(grammar_comment.comment_parser)
+			+ pp.Optional(pp.restOfLine.copy().setParseAction(ev_hdler.comment))
+		)
 		+ pp.Empty().setParseAction(ev_hdler.external_declaration_end)
 	)
 	# 2) "declarator declaration", "declarator {" はfunction-definition
@@ -710,7 +717,7 @@ class grammar_def:
 	)
 	external_declaration = (
 		external_declaration_1
-		| external_declaration_2
+		| external_declaration_2.ignore(grammar_comment.comment_parser)
 	)
 	translation_unit = pp.OneOrMore(external_declaration)
 

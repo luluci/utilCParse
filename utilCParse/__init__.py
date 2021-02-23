@@ -11,10 +11,16 @@ parser = pp.OneOrMore(
 )
 #parser = grammar.grammar_def.declaration[1,...]
 
+"""
 parser.ignore(
+	grammar_comment.comment_parser
+)
+"""
+
+"""
 	pp.Group(
 		grammar_comment.single_line_comment
 #		| pp.cStyleComment
 		| grammar_comment.multi_line_comment
 	).setParseAction(analyzer.ev_hdler.comment)
-)
+"""
