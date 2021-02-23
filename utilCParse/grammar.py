@@ -419,6 +419,8 @@ class grammar_def:
 		| token.keyword.static_
 		| token.keyword.auto_
 		| token.keyword.register_
+		| token.keyword.near
+		| token.keyword.far
 	)
 
 	struct_or_union_specifier = pp.Forward()
@@ -505,12 +507,11 @@ class grammar_def:
 	)
 
 	# (6.7) declaration-specifiers:
-	"""
-	declaration_specifiers = pp.Each(
-		pp.Optional(storage_class_specifier)
+	declaration_specifiers = (
+		pp.ZeroOrMore(storage_class_specifier)
 		& pp.Optional(type_specifier.copy().setParseAction(analyzer.declaration_type))
-		& pp.Optional(type_qualifier)
-		& pp.Optional(function_specifier)
+		& pp.ZeroOrMore(type_qualifier)
+		& pp.ZeroOrMore(function_specifier)
 	)
 	"""
 	declaration_specifiers = (
@@ -526,6 +527,7 @@ class grammar_def:
 			| function_specifier
 		)
 	)
+	"""
 
 	# (6.7.2.2) enumerator:
 	enumerator = (

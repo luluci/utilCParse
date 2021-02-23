@@ -43,6 +43,52 @@ class keyword:
 	_Bool_ = pp.Keyword("_Bool")
 	_Complex_ = pp.Keyword("_Complex")
 	Imaginary_ = pp.Keyword("_Imaginary")
+	# special
+	near = pp.Keyword("__near")
+	far = pp.Keyword("__far")
+
+keywords = (
+	keyword.auto_
+	| keyword.break_
+	| keyword.case_
+	| keyword.char_
+	| keyword.const_
+	| keyword.continue_
+	| keyword.default_
+	| keyword.do_
+	| keyword.double_
+	| keyword.else_
+	| keyword.enum_
+	| keyword.extern_
+	| keyword.float_
+	| keyword.for_
+	| keyword.goto_
+	| keyword.if_
+	| keyword.inline_
+	| keyword.int_
+	| keyword.long_
+	| keyword.register_
+	| keyword.restrict_
+	| keyword.return_
+	| keyword.short_
+	| keyword.signed_
+	| keyword.sizeof_
+	| keyword.static_
+	| keyword.struct_
+	| keyword.switch_
+	| keyword.typedef_
+	| keyword.union_
+	| keyword.unsigned_
+	| keyword.void_
+	| keyword.volatile_
+	| keyword.while_
+	| keyword._Bool_
+	| keyword._Complex_
+	| keyword.Imaginary_
+	# special
+	| keyword.near
+	| keyword.far
+)
 
 # A.1.3 Identifiers
 class identifier_def:
@@ -52,8 +98,12 @@ class identifier_def:
 	universal_character_name_U = pp.Literal("\\U") + pp.Char(pp.hexnums * 8)
 	universal_character_name = (universal_character_name_u | universal_character_name_U)
 	identifier_nondigit = (nondigit | universal_character_name)
+
 # (6.4.2.1) identifier:
-identifier = pp.Combine(identifier_def.identifier_nondigit + pp.ZeroOrMore(identifier_def.identifier_nondigit | identifier_def.digit))
+identifier = (
+	pp.NotAny(keywords)
+	+ pp.Combine(identifier_def.identifier_nondigit + pp.ZeroOrMore(identifier_def.identifier_nondigit | identifier_def.digit))
+)
 
 # A.1.5 Constants
 class constant_def:

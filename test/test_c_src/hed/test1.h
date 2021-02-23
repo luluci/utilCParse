@@ -1,5 +1,17 @@
 #include <stdint.h>
 
+// 基本型
+unsigned int u16_var = 0;
+uint32_t *u32p_unspe_var = 0;
+__near uint32_t *u32p_near_var = 0;
+__far uint32_t *u32p_far_var = 0;
+static signed int i16_static = 1;
+const unsigned char u8_const = 2;
+static const volatile uint32_t u32_var = 3;
+
+typedef void *(func1_t)(uint32_t, int16_t *);
+typedef void *(*funcptr1_t)(uint32_t, int16_t *);
+
 // hoge定義
 struct hoge {
 	int byte;		// byte1
@@ -15,11 +27,13 @@ struct bf_type {
 	uint16_t	b15   :1;			// 15bit目
 	uint16_t	b16   :1;			// 16bit目
 	uint16_t	byte2;				// 2バイト、パディングあり
+	funcptr1_t fp1_ary1[2];
 	struct bf_inner_type {			// インナー構造体定義
 		uint16_t	b0    :1;		// b0
 		uint16_t	b1_5  :5;		// b1_5
 		uint16_t	byte1;
 	} inner;
+	uint32_t *u32p_var;
 	union {
 		uint16_t	u16[2];
 		uint32_t	u32;
