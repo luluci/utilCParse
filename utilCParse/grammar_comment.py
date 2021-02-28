@@ -29,3 +29,12 @@ comment_parser = pp.Group(
 #	| pp.cStyleComment
 	| multi_line_comment
 ).setParseAction(ev_hdler.comment)
+
+one_line_comment_parser = pp.Group(
+	pp.Word(' \t')[...]
+	+ (
+		single_line_comment
+	#	| pp.cStyleComment
+		| multi_line_comment
+	)
+).leaveWhitespace().setParseAction(ev_hdler.comment)

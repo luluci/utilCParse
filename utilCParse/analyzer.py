@@ -31,12 +31,16 @@ class event_handler:
 
 	def external_declaration_begin(self, loc: int, tokens: pp.ParseResults):
 		# グローバル定義の開始
-		self._analyzer.event(event_tag.ext_decl_begin, loc, tokens)
+		# begin/endはempty()で実装してるので、次のtokenと同じlocになる
+		# よって、locチェックしない
+		self._analyzer.event(event_tag.ext_decl_begin, None, tokens)
 		print("external_declaration_begin" + ":" + str(loc) + str(tokens))
 
 	def external_declaration_end(self, loc: int, tokens: pp.ParseResults):
-		# グローバル定義の開始
-		self._analyzer.event(event_tag.ext_decl_end, loc, tokens)
+		# グローバル定義の終了
+		# begin/endはempty()で実装してるので、次のtokenと同じlocになる
+		# よって、locチェックしない
+		self._analyzer.event(event_tag.ext_decl_end, None, tokens)
 		print("external_declaration_end" + ":" + str(loc) + str(tokens))
 
 	def declaration_type(self, loc: int, tokens: pp.ParseResults):
@@ -130,6 +134,10 @@ class analyzer:
 				self.action_decl_id,
 				None
 			),
+			event_tag.comment: (
+				self.action_post_comment,
+				None
+			),
 			event_tag.ext_decl_end: (
 				self.action_decl_end,
 				None
@@ -145,9 +153,25 @@ class analyzer:
 		# 今回解析取得情報初期化
 		self._temp_type = None
 		self._temp_id = []
+		self._comment = None
 
 	def event(self, event: event_tag, loc: int, tokens: pp.ParseResults):
-		if self._loc < loc:
+		# locチェック, Noneのケースあり
+		loc_check = False
+		next_loc = loc
+		if loc is None:
+			# Noneの場合はチェック無効、locも進めない
+			loc_check = True
+			next_loc = self._loc
+		else:
+			if self._loc < loc:
+				loc_check = True
+		if loc_check:
+			# eventが登録されていない場合、初期状態へ戻る
+			# 初期状態からの遷移を考慮して先に1度登録有無をチェックする
+			if event not in self._trans_tbl_ptr.keys():
+				self._init_trans()
+			# eventが登録されていれば受理して処理する
 			if event in self._trans_tbl_ptr.keys():
 				act, tbl = self._trans_tbl_ptr[event]
 				# action実行
@@ -159,9 +183,10 @@ class analyzer:
 					pass
 				else:
 					self._trans_tbl_ptr = tbl
-			else:
-				# eventが登録されていない場合、初期状態へ戻る
-				self._init_trans()
+				# location更新
+				# 一応、受理したときだけ更新
+				# 同じtokenのイベントハンドラが2回発生することがある
+				self._loc = next_loc
 		else:
 			# 解析済みlocの場合は無視する
 			pass
@@ -171,7 +196,13 @@ class analyzer:
 		単独で書いてあるコメント
 		変数の手前とかに書いてあるやつのはず
 		"""
-		self._comment = tokens[0][1]
+		self._comment = tokens[0][1].strip()
+
+	def action_post_comment(self, tokens: pp.ParseResults):
+		"""
+		変数の後ろに書いてあるコメント
+		"""
+		self._comment = tokens[0][1].strip()
 
 	def action_decl_type(self, tokens: pp.ParseResults):
 		temp = ""

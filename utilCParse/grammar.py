@@ -694,8 +694,8 @@ class grammar_def:
 		).ignore(grammar_comment.comment_parser)
 		+ (
 			token.punctuator.semicolon
-#			+ pp.Optional(grammar_comment.comment_parser)
-			+ pp.Optional(pp.restOfLine.copy().setParseAction(ev_hdler.comment))
+			+ pp.Optional(grammar_comment.one_line_comment_parser)
+#			+ pp.Optional(pp.restOfLine.copy().setParseAction(ev_hdler.comment))
 		)
 		+ pp.Empty().setParseAction(ev_hdler.external_declaration_end)
 	)

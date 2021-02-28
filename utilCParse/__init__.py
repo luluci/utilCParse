@@ -3,13 +3,15 @@ from . import token
 from . import grammar
 from . import grammar_comment
 from . import grammar_pp
-from . import analyzer
+from . import analyzer as parser_analyzer
 
 parser = pp.OneOrMore(
 	grammar.parser
 	| grammar_pp.pp_parser
 )
 #parser = grammar.grammar_def.declaration[1,...]
+
+analyzer = parser_analyzer.ev_hdler._analyzer
 
 """
 parser.ignore(
