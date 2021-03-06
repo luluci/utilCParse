@@ -238,11 +238,11 @@ class analyzer:
 		# メンバー宣言部
 		self._trans_tbl[state_tag.decl_struct_mem].update({
 			event_tag.strcut_decl_mem_type: (
-				self.action_,
+				self.action_struct_decl_member_type,
 				state_tag.analyze_continue
 			),
 			event_tag.strcut_decl_mem_id: (
-				self.action_,
+				self.action_struct_decl_member_id,
 				state_tag.analyze_continue
 			),
 			event_tag.comment: (
@@ -250,8 +250,8 @@ class analyzer:
 				state_tag.analyze_continue
 			),
 			event_tag.strcut_decl_mem_end: (
-				self.action_,
-				state_tag.ext_decl_struct_mem_block
+				self.action_struct_decl_member_end,
+				state_tag.analyze_end
 			)
 		})
 		# デフォルト状態遷移テーブルを設定
@@ -406,6 +406,18 @@ class analyzer:
 		self._temp_tag = decl_info.TAG.struct
 
 	def action_struct_decl_member_begin(self, tokens: pp.ParseResults):
+		# コンテキストスイッチ：変数宣言
+		self._temp_tag = decl_info.TAG.var
+
+	def action_struct_decl_member_type(self, tokens: pp.ParseResults):
+		# コンテキストスイッチ：変数宣言
+		self._temp_tag = decl_info.TAG.var
+
+	def action_struct_decl_member_id(self, tokens: pp.ParseResults):
+		# コンテキストスイッチ：変数宣言
+		self._temp_tag = decl_info.TAG.var
+
+	def action_struct_decl_member_end(self, tokens: pp.ParseResults):
 		# コンテキストスイッチ：変数宣言
 		self._temp_tag = decl_info.TAG.var
 
