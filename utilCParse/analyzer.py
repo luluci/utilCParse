@@ -50,8 +50,9 @@ class analyzer:
 	def add_var_info(self, item: var_info):
 		self.var_info_list[item.id] = item
 
-	def add_struct_info(self, item: type_info):
+	def add_type_info(self, item: type_info) -> type_info:
 		self.type_info_list[item.id] = item
+		return self.type_info_list[item.id]
 
 	def comment(self, loc: int, tokens: pp.ParseResults):
 		self._comment = tokens[0][1]
@@ -80,17 +81,21 @@ class analyzer:
 
 	def external_decl_struct(self, loc: int, tokens: pp.ParseResults):
 		# tokensを解析して構造体情報を取得
-		new_inf = self._make_struct_info(tokens)
-		# 登録
-		self.add_struct_info(new_inf)
+		type_inf = self._get_type_info(tokens)
 		# declaratorが存在するときは変数情報も登録
 		if 'declarator_list' in tokens.keys():
-			self.external_decl_var(loc, tokens)
+			self._make_var_info(tokens, type_inf)
 
 	def external_decl_var(self, loc: int, tokens: pp.ParseResults):
 		# declaration-specifiers
 		# 型情報取得
-		type_spec = self._get_type_id(tokens)
+		type_inf = self._get_type_info(tokens)
+		# 変数情報作成
+		self._make_var_info(tokens, type_inf)
+
+
+
+	def _make_var_info(self, tokens: pp.ParseResults, type_inf: type_info):
 		# comment
 		comment = None
 		if 'comment' in tokens.keys():
@@ -98,7 +103,7 @@ class analyzer:
 		# init-declarator-list
 		for declarator in tokens.declarator_list:
 			new_var = var_info()
-			new_var.type = type_spec
+			new_var.type = type_inf
 			# pointerチェック
 			if 'pointer' in declarator.declarator.keys():
 				new_var.pointer = " ".join(declarator.pointer)
@@ -111,6 +116,49 @@ class analyzer:
 			new_var.comment = comment
 			# 追加
 			self.add_var_info(new_var)
+
+	def _make_type_info(self, tokens: pp.ParseResults) -> type_info:
+		"""
+		次の解析結果tokenを受け取る。
+			-> external_decl, specifier_qualifier_list
+		type_infoを作成して返す。
+		"""
+
+	def _get_type_info(self, tokens: pp.ParseResults) -> type_info:
+		"""
+		external_declを渡すこと。
+		external_decl情報から型情報を取得して返す。
+		(必要であれば専用のクラスを用意する)
+		"""
+		result = None
+		if 'struct_spec' in tokens.keys():
+			# struct_specが存在するとき、struct/union
+			id = tokens.struct_spec.struct_id[0]
+			# 型情報有無チェック
+			tmp_inf = self._get_type_info_by_id(id)
+			if tmp_inf is None:
+				# 型情報作成
+				tmp_inf = self._make_struct_info(tokens)
+				#
+				result = self.add_type_info(tmp_inf)
+			else:
+				# 存在するなら何もしない?
+				result = tmp_inf
+
+		elif 'decl_spec' in tokens.keys():
+			# struct_specが存在せずdecl_specが存在するとき基本型
+			pass
+		else:
+			# その他ケース?
+			pass
+		# 結果を返す
+		return result
+
+	def _get_type_info_by_id(self, id: str):
+		if id in self.type_info_list.keys():
+			return self.type_info_list[id]
+		else:
+			return None
 
 	def _get_type_id(self, tokens: pp.ParseResults) -> str:
 		"""
@@ -125,19 +173,6 @@ class analyzer:
 			result = " ".join(tokens.decl_spec)
 		#
 		return result
-
-	def _make_type_info(self, tokens: pp.ParseResults) -> type_info:
-		"""
-		次の解析結果tokenを受け取る。
-			-> external_decl, specifier_qualifier_list
-		type_infoを作成して返す。
-		"""
-
-	def _get_type_info(self, id: str) -> type_info:
-		if id in self.type_info_list.keys():
-			return self.type_info_list[id]
-		else:
-			return None
 
 	def _make_struct_info(self, tokens: pp.ParseResults) -> type_info:
 		# grammarチェック
