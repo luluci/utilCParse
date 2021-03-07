@@ -1,425 +1,228 @@
+from operator import truediv
 from typing import List, Dict
 import enum
 import pyparsing as pp
 
-
-class event_tag(enum.Enum):
-	# コメント
-	comment = enum.auto()
-	# グローバル変数宣言
-	ext_decl_begin = enum.auto()
-	ext_decl_end = enum.auto()
-	ext_decl_type = enum.auto()
-	ext_decl_id = enum.auto()
-	# struct宣言
-	ext_decl_struct_begin = enum.auto()
-	struct_name = enum.auto()
-	#struct_end = enum.auto() 			# 無い
-	strcut_decl_begin = enum.auto()
-	strcut_decl_mem_begin = enum.auto()
-	strcut_decl_mem_type = enum.auto()
-	strcut_decl_mem_id = enum.auto()
-	strcut_decl_mem_end = enum.auto()
-	strcut_decl_end = enum.auto()
-	# 特殊
-	event_else = enum.auto()
-
-
-class state_tag(enum.Enum):
-	ini = enum.auto()
-	ext_decl = enum.auto()
-	ext_decl_var = enum.auto()
-	ext_decl_struct = enum.auto()
-	ext_decl_struct_mem_block = enum.auto()
-	decl_struct_mem = enum.auto()
-	# 特殊
-	analyze_continue = enum.auto()
-	analyze_end = enum.auto()
-
-
-class event_handler:
+class var_info:
+	"""
+	変数情報クラス
+	"""
 
 	def __init__(self) -> None:
-		self._analyzer = analyzer()
-
-	def comment(self, loc: int, tokens: pp.ParseResults):
-		# コメントは同じtokenが2回出現するのでlocチェックしない
-		self._analyzer.event(event_tag.comment, None, tokens)
-		print("comment" + ":" + str(loc) + str(tokens))
-
-	def external_declaration_begin(self, loc: int, tokens: pp.ParseResults):
-		# グローバル定義の開始
-		# begin/endはempty()で実装してるので、次のtokenと同じlocになる
-		# よって、locチェックしない
-		self._analyzer.event(event_tag.ext_decl_begin, None, tokens)
-		print("external_declaration_begin" + ":" + str(loc) + str(tokens))
-
-	def external_declaration_end(self, loc: int, tokens: pp.ParseResults):
-		# グローバル定義の終了
-		# begin/endはempty()で実装してるので、次のtokenと同じlocになる
-		# よって、locチェックしない
-		self._analyzer.event(event_tag.ext_decl_end, None, tokens)
-		print("external_declaration_end" + ":" + str(loc) + str(tokens))
-
-	def declaration_type(self, loc: int, tokens: pp.ParseResults):
-		# type-specifier
-		self._analyzer.event(event_tag.ext_decl_type, loc, tokens)
-		print("declaration_type" + ":" + str(loc) + str(tokens))
-
-	def global_var_id(self, loc: int, tokens: pp.ParseResults):
-		# identifier
-		self._analyzer.event(event_tag.ext_decl_id, loc, tokens)
-		print("global_var_name" + ":" + str(loc) + str(tokens))
-
-	def typedef_begin(self, loc: int, tokens: pp.ParseResults):
-		print("typedef_begin" + ":" + str(loc) + str(tokens))
-
-	def global_var_init(self, loc: int, tokens: pp.ParseResults):
-		# 
-		print("global_var_init" + ":" + str(loc) + str(tokens))
-
-	def struct_begin(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言の開始
-		self._analyzer.event(event_tag.ext_decl_struct_begin, loc, tokens)
-		print("struct_begin" + ":" + str(loc) + str(tokens))
-
-	def struct_name(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:名称
-		self._analyzer.event(event_tag.struct_name, loc, tokens)
-		print("struct_name" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_begin(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:メンバー宣言ブロック開始
-		self._analyzer.event(event_tag.strcut_decl_begin, loc, tokens)
-		print("struct_declare_begin" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_member_begin(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:メンバー宣言開始
-		self._analyzer.event(event_tag.strcut_decl_mem_begin, loc, tokens)
-		print("struct_declare_member_begin" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_member_type(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:メンバー宣言:型
-		self._analyzer.event(event_tag.strcut_decl_mem_type, loc, tokens)
-		print("struct_declare_member_type" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_member_name(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:メンバー宣言:名称
-		self._analyzer.event(event_tag.strcut_decl_mem_id, loc, tokens)
-		print("struct_declare_member_name" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_member_bit(self, loc: int, tokens: pp.ParseResults):
-		print("struct_declare_member_bit" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_member_end(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:メンバー宣言終了
-		self._analyzer.event(event_tag.strcut_decl_mem_end, loc, tokens)
-		print("struct_declare_member_end" + ":" + str(loc) + str(tokens))
-
-	def struct_declare_end(self, loc: int, tokens: pp.ParseResults):
-		# 構造体宣言:メンバー宣言ブロック終了
-		self._analyzer.event(event_tag.strcut_decl_end, loc, tokens)
-		print("struct_declare_end" + ":" + str(loc) + str(tokens))
-
-	def struct_end(self, loc: int, tokens: pp.ParseResults):
-		print("struct_end" + ":" + str(loc) + str(tokens))
+		self.id: str = None
+		self.type: type_info = None
+		self.pointer = None
+		self.comment: str = None
 
 
-class decl_info:
+class type_info:
+	"""
+	型情報クラス
+	"""
 	class TAG(enum.Enum):
-		var = enum.auto()
+		base = enum.auto()
 		struct = enum.auto()
+		union = enum.auto()
+		inner_struct = enum.auto()
+		inner_union = enum.auto()
 
 	def __init__(self) -> None:
 		self.tag = None
-		self.name = None
+		self.id = None
 		self.comment = None
-		self.member = []
+		# member情報
+		self.member: Dict[str,var_info] = {}
+		# 内部構造体定義情報
+		self.inner_type: Dict[str, type_info] = {}
+
+	def set_tag_struct(self):
+		self.tag = type_info.TAG.struct
 
 class analyzer:
-	class temp_decl_info:
-		def __init__(self) -> None:
-			# 解析取得情報初期化
-			self.tag = None
-			self.type = None
-			self.id = []
-			self.comment = None
-			self.member = []
-			self.member_ptr = None
 
 	def __init__(self) -> None:
-		self._decl_info: Dict[str, decl_info] = {}
-		# FollowedByでもparseActionが実行されるので、
-		# locを元に解析済みを判定する。
-		self._loc = -1
+		# 単独出現コメント
 		self._comment = None
-		# 解析中変数情報
-		self._temp_decl_info = None
+		# 情報テーブル
+		self.var_info_list: Dict[str, var_info] = {}
+		self.type_info_list: Dict[str, type_info] = {}
+
+	def add_var_info(self, item: var_info):
+		self.var_info_list[item.id] = item
+
+	def add_struct_info(self, item: type_info):
+		self.type_info_list[item.id] = item
+
+	def comment(self, loc: int, tokens: pp.ParseResults):
+		self._comment = tokens[0][1]
+
+	def external_declaration(self, loc: int, tokens: pp.ParseResults):
+		# グローバル定義の開始
+		# begin/endはempty()で実装してるので、次のtokenと同じlocになる
+		# よって、locチェックしない
+		print("external_declaration" + ":" + str(loc) + str(tokens))
+
+		if 'external_decl' not in tokens.keys():
+			# 構文構築上、external_declが存在しないのはありえない
+			raise Exception("grammar is not preserve rule.")
+
+		if 'typedef' in tokens.external_decl.keys():
+			self.external_decl_typedef(loc, tokens.external_decl)
+		elif 'struct_spec' in tokens.external_decl.keys():
+			self.external_decl_struct(loc, tokens.external_decl)
+		else:
+			self.external_decl_var(loc, tokens.external_decl)
+		# 事前コメントクリア
+		self._comment = None
+
+	def external_decl_typedef(self, loc: int, tokens: pp.ParseResults):
+		pass
+
+	def external_decl_struct(self, loc: int, tokens: pp.ParseResults):
+		# tokensを解析して構造体情報を取得
+		new_inf = self._make_struct_info(tokens)
+		# 登録
+		self.add_struct_info(new_inf)
+		# declaratorが存在するときは変数情報も登録
+		if 'declarator_list' in tokens.keys():
+			self.external_decl_var(loc, tokens)
+
+	def external_decl_var(self, loc: int, tokens: pp.ParseResults):
+		# declaration-specifiers
+		# 型情報取得
+		type_spec = self._get_type_id(tokens)
+		# comment
+		comment = None
+		if 'comment' in tokens.keys():
+			comment = self._get_comment(tokens.comment)
+		# init-declarator-list
+		for declarator in tokens.declarator_list:
+			new_var = var_info()
+			new_var.type = type_spec
+			# pointerチェック
+			if 'pointer' in declarator.declarator.keys():
+				new_var.pointer = " ".join(declarator.pointer)
+			# idチェック
+			if 'id' not in declarator.declarator.keys():
+				# 構文構築上、external_declが存在しないのはありえない
+				raise Exception("grammar is not preserve rule.")
+			new_var.id = declarator.declarator.id[0]
+			# comment
+			new_var.comment = comment
+			# 追加
+			self.add_var_info(new_var)
+
+	def _get_type_id(self, tokens: pp.ParseResults) -> str:
+		"""
+		external_declを渡すこと。
+		external_decl情報から型情報を取得して返す。
+		(必要であれば専用のクラスを用意する)
+		"""
+		result = None
+		if 'struct_spec' in tokens.keys():
+			result = tokens.struct_spec.struct_or_union + tokens.struct_spec.struct_id[0]
+		else:
+			result = " ".join(tokens.decl_spec)
 		#
-		self._trans_tbl = {}
-		self._trans_tbl[state_tag.ini] = {}
-		self._trans_tbl[state_tag.ext_decl] = {}
-		self._trans_tbl[state_tag.ext_decl_var] = {}
-		self._trans_tbl[state_tag.ext_decl_struct] = {}
-		self._trans_tbl[state_tag.ext_decl_struct_mem_block] = {}
-		self._trans_tbl[state_tag.decl_struct_mem] = {}
-		# 状態遷移テーブル:初期状態
-		self._trans_tbl[state_tag.ini] = {
-			event_tag.comment: (
-				self.action_pre_comment,
-				state_tag.analyze_continue
-			),
-			event_tag.ext_decl_begin: (
-				self.action_decl_begin,
-				state_tag.ext_decl
-			),
-		}
-		# 状態遷移テーブル:グローバル宣言
-		self._trans_tbl[state_tag.ext_decl].update({
-			event_tag.ext_decl_type: (
-				self.action_decl_type,
-				state_tag.ext_decl_var
-			),
-			event_tag.ext_decl_struct_begin: (
-				self.action_struct_begin,
-				state_tag.ext_decl_struct
-			),
-			event_tag.event_else: (
-				None,
-				state_tag.analyze_end
-			),
-		})
-		# 状態遷移テーブル:グローバル宣言:変数
-		self._trans_tbl[state_tag.ext_decl_var].update({
-			event_tag.ext_decl_id: (
-				self.action_decl_id,
-				state_tag.analyze_continue
-			),
-			event_tag.comment: (
-				self.action_post_comment,
-				state_tag.analyze_continue
-			),
-			event_tag.ext_decl_end: (
-				self.action_decl_end,
-				state_tag.analyze_end
-			),
-		})
-		# 状態遷移テーブル:グローバル宣言:struct定義
-		# 'struct <id>' まで
-		self._trans_tbl[state_tag.ext_decl_struct].update({
-			event_tag.struct_name: (
-				self.action_struct_id,
-				state_tag.analyze_continue
-			),
-			event_tag.comment: (
-				None,
-				state_tag.analyze_continue
-			),
-			event_tag.strcut_decl_begin: (
-				self.action_decl_struct_begin,
-				state_tag.ext_decl_struct_mem_block
-			),
-			event_tag.event_else: (
-				self.action_struct_end,
-				state_tag.analyze_end
-			),
-		})
-		# メンバー宣言ブロック部
-		self._trans_tbl[state_tag.ext_decl_struct_mem_block].update({
-			event_tag.strcut_decl_mem_begin: (
-				self.action_struct_decl_member_begin,
-				state_tag.decl_struct_mem
-			),
-			event_tag.strcut_decl_end: (
-				self.action_decl_end,
-				None
-			)
-		})
-		# メンバー宣言部
-		self._trans_tbl[state_tag.decl_struct_mem].update({
-			event_tag.strcut_decl_mem_type: (
-				self.action_struct_decl_member_type,
-				state_tag.analyze_continue
-			),
-			event_tag.strcut_decl_mem_id: (
-				self.action_struct_decl_member_id,
-				state_tag.analyze_continue
-			),
-			event_tag.comment: (
-				self.action_post_comment,
-				state_tag.analyze_continue
-			),
-			event_tag.strcut_decl_mem_end: (
-				self.action_struct_decl_member_end,
-				state_tag.analyze_end
-			)
-		})
-		# デフォルト状態遷移テーブルを設定
-		self._trans_tbl_stack = []
-		self._trans_tbl_stack.append(self._trans_tbl[state_tag.ini])
+		return result
 
-	def _push_trans_tbl(self, new_tbl):
+	def _make_type_info(self, tokens: pp.ParseResults) -> type_info:
 		"""
-		解析状態コンテキスト遷移
+		次の解析結果tokenを受け取る。
+			-> external_decl, specifier_qualifier_list
+		type_infoを作成して返す。
 		"""
-		self._trans_tbl_stack.append(new_tbl)
 
-	def _pop_trans_tbl(self):
-		"""
-		解析状態コンテキスト復帰
-		"""
-		# 状態遷移テーブルスタックから1つpopしてコンテキスト復帰
-		self._trans_tbl_stack.pop()
-
-	def _get_trans_tbl(self, event: event_tag):
-		tbl_ptr = self._trans_tbl_stack[-1]
-		if event in tbl_ptr.keys():
-			return event, self._trans_tbl_stack[-1][event]
-		elif event_tag.event_else in tbl_ptr.keys():
-			return event_tag.event_else, self._trans_tbl_stack[-1][event_tag.event_else]
+	def _get_type_info(self, id: str) -> type_info:
+		if id in self.type_info_list.keys():
+			return self.type_info_list[id]
 		else:
 			return None
 
-	def _check_loc(self, loc: int) -> int:
-		next_loc = None
-		if loc is None:
-			# Noneの場合はチェック無効、locも進めない
-			pass
+	def _make_struct_info(self, tokens: pp.ParseResults) -> type_info:
+		# grammarチェック
+		if 'struct_spec' not in tokens.keys():
+			# 構文構築上、struct_specが存在しないのはありえない
+			raise Exception("grammar is not preserve rule.")
+		if 'struct_decl_list' not in tokens.struct_spec.keys():
+			# struct_decl_list が存在しないときは変数宣言
+			id = tokens.struct_spec.struct_id[0]
+			inf = self._get_type_info(id)
+			if inf is not None:
+				inf.id = id
+				inf.set_tag_struct()
+			return inf
+		# struct/union情報取得
+		new_inf = type_info()
+		if 'struct_id' in tokens.struct_spec.keys():
+			new_inf.id = tokens.struct_spec.struct_id[0]
 		else:
-			if self._loc < loc:
-				# locが新しければチェック有効
-				next_loc = loc
-		return next_loc
-
-
-	def event(self, event: event_tag, loc: int, tokens: pp.ParseResults):
-		# locチェック
-		next_loc = self._check_loc(loc)
-		if next_loc:
-			# eventが登録されていれば受理して処理する
-			result = self._get_trans_tbl(event)
-			if result:
-				ev, act, next_state = result
-				# action実行
-				if act is not None:
-					act(tokens)
-				# 状態遷移実施
-				if next_state is not None:
-					self.event_trans(next_state)
-				# 特殊イベントチェック
-				if ev == event_tag.event_else:
-					# else
-					# ここまででelseイベントを実施、
-					# 発生したイベント自体は未処理なので再帰的に実行する
-					self.event(event, loc, tokens)
-				# location更新
-				# 一応、受理したときだけ更新
-				# 同じtokenのイベントハンドラが2回発生することがある
-				self._loc = next_loc
-		else:
-			# 解析済みlocの場合は無視する
-			pass
-
-	def event_trans(self, tag: state_tag):
-		if tag == state_tag.analyze_continue:
-			# 現状態継続
-			pass
-		elif tag == state_tag.analyze_end:
-			# 前状態復帰
-			self._pop_trans_tbl()
-		else:
-			self._push_trans_tbl(self._trans_tbl[tag])
-
-	def action_pre_comment(self, tokens: pp.ParseResults):
-		"""
-		単独で書いてあるコメント
-		変数の手前とかに書いてあるやつのはず
-		"""
-		self._comment = tokens[0][1].strip()
-
-	def action_post_comment(self, tokens: pp.ParseResults):
-		"""
-		変数の後ろに書いてあるコメント
-		"""
-		self._comment = tokens[0][1].strip()
-
-	def action_decl_begin(self, tokens: pp.ParseResults):
-		# 宣言開始
-		self._temp_decl_info = analyzer.temp_decl_info()
-
-	def action_decl_type(self, tokens: pp.ParseResults):
-		# 変数宣言開始
-		# 宣言タイプ設定
-		self._temp_decl_info.tag = decl_info.TAG.var
-		# type情報作成
-		temp = ""
-		for token in tokens:
-			if type(token) == str:
-				temp += token + " "
+			new_inf.id = "<unnamed>"
+		new_inf.struct_union = tokens.struct_spec.struct_or_union
+		# comment取得
+		comment = None
+		if 'comment' in tokens.struct_spec.keys():
+			comment = self._get_comment(tokens.struct_spec.comment)
+		elif self._comment is not None:
+			comment = self._comment
+			self._comment = None
+		new_inf.comment = comment
+		# メンバ取得
+		for decl in tokens.struct_spec.struct_decl_list:
+			mem_inf = var_info()
+			# identifier
+			mem_inf.id = decl.id[0]
+			# comment
+			if 'comment' in decl.keys():
+				comment = self._get_comment(decl.comment)
+			elif 'comment_pre' in decl.keys():
+				comment = self._get_comment(decl.comment_pre)
+			# type-spec
+			if 'struct_spec' in decl.specifier_qualifier_list.keys():
+				# struct_specが存在するときは内部構造体定義
+				inner = self._make_struct_info(decl.specifier_qualifier_list)
+				new_inf.inner_type[inner.id] = inner
+				# 型情報取得
+				mem_inf.type = inner
 			else:
-				temp += " ".join(token) + " "
-		# type情報設定
-		self._temp_decl_info.type = temp.strip()
-
-	def action_decl_id(self, tokens: pp.ParseResults):
-		id = tokens["id"][0]
-		self._temp_id.append(id)
-		# identifier設定
-		self._temp_decl_info.id.append(id)
-
-	def action_decl_end(self, tokens: pp.ParseResults):
-		# 変数情報登録
-		for name in self._temp_id:
-			# 情報作成
-			new_info = decl_info()
-			new_info.tag = self._temp_tag
-			new_info.name = name
-			new_info.comment = self._comment
-			# 情報登録
-			if name not in self._decl_info.keys():
-				self._decl_info[name] = new_info
+				# 通常変数
+				self._get_type_info_spec_qual_list(mem_inf, decl.specifier_qualifier_list)
+			# member登録
+			new_inf.member[mem_inf.id] = mem_inf
+		# 終了
+		return new_inf
 
 
-	def action_struct_begin(self, tokens: pp.ParseResults):
-		# struct宣言
-		self._temp_tag = decl_info.TAG.struct
+	def _get_type_info_spec_qual_list(self, item: var_info, spec_qual_list: pp.ParseResults):
+		# check
+		if 'type_spec' not in spec_qual_list.keys():
+			# 構文構築上、type_specが存在しないのはありえない
+			raise Exception("grammar is not preserve rule.")
+		# 型情報取得
+		# type-qualifier
+		# 未実装
+		# type-specifier
+		if 'struct_spec' in spec_qual_list.keys():
+			# struct_specが存在するときは内部構造体定義
+			# 上位でチェックする
+			raise Exception("grammar is not preserve rule.")
+		else:
+			# 基本型のとき
+			item.type = " ".join(spec_qual_list.type_spec)
 
-	def action_struct_end(self, tokens: pp.ParseResults):
-		# else(external_declaration_end)で遷移する前提
-		# external_declaration_endは上位で受理するので、再帰的にイベント処理を実施
-		# コンテキスト復帰
-		self._pop_trans_tbl()
-		self.event()
-
-	def action_struct_id(self, tokens: pp.ParseResults):
-		# struct id
-		id = tokens["id"][0]
-		self._temp_id.append(id)
-
-	def action_decl_struct_begin(self, tokens: pp.ParseResults):
-		# struct member宣言開始
-		self._temp_member_ptr = self._temp_member
-
-	def action_struct_decl_begin(self, tokens: pp.ParseResults):
-		# コンテキストスイッチ：struct宣言
-		self._push_trans_tbl(self._trans_tbl[state_tag.ext_decl_struct])
-		self._temp_tag = decl_info.TAG.struct
-
-	def action_struct_decl_member_begin(self, tokens: pp.ParseResults):
-		# コンテキストスイッチ：変数宣言
-		self._temp_tag = decl_info.TAG.var
-
-	def action_struct_decl_member_type(self, tokens: pp.ParseResults):
-		# コンテキストスイッチ：変数宣言
-		self._temp_tag = decl_info.TAG.var
-
-	def action_struct_decl_member_id(self, tokens: pp.ParseResults):
-		# コンテキストスイッチ：変数宣言
-		self._temp_tag = decl_info.TAG.var
-
-	def action_struct_decl_member_end(self, tokens: pp.ParseResults):
-		# コンテキストスイッチ：変数宣言
-		self._temp_tag = decl_info.TAG.var
+	def _get_comment(self, comment: pp.ParseResults) -> str:
+		"""
+		'comment'tokenを渡すこと。
+		コメントテキストを抽出して返す
+		"""
+		find = False
+		for token in comment[0]:
+			if find:
+				return token.strip()
+			if token in {'//', '/*'}:
+				find = True
+		return None
 
 
-ev_hdler = event_handler()
+
+ev_hdler = analyzer()

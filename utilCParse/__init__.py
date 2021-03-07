@@ -11,7 +11,7 @@ parser = pp.OneOrMore(
 )
 #parser = grammar.grammar_def.declaration[1,...]
 
-analyzer = parser_analyzer.ev_hdler._analyzer
+#analyzer = parser_analyzer.analyzer
 
 """
 parser.ignore(
