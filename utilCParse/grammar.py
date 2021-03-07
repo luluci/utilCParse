@@ -722,7 +722,7 @@ class grammar_def:
 				token.punctuator.semicolon
 				+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 			)
-		)("external_decl").setParseAction(ev_hdler.external_declaration)
+		)("external_decl")
 #		+ pp.Empty().setParseAction(ev_hdler.external_declaration_end)
 	)
 	# 2) "declarator declaration", "declarator {" はfunction-definition

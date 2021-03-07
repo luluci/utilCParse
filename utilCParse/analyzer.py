@@ -1,4 +1,4 @@
-from operator import truediv
+from operator import ne, truediv
 from typing import List, Dict
 import enum
 import pyparsing as pp
@@ -35,8 +35,20 @@ class type_info:
 		# 内部構造体定義情報
 		self.inner_type: Dict[str, type_info] = {}
 
+	def set_tag_base(self):
+		self.tag = type_info.TAG.base
+
 	def set_tag_struct(self):
 		self.tag = type_info.TAG.struct
+
+	def set_tag_union(self):
+		self.tag = type_info.TAG.union
+
+	def set_struct_or_union(self, struct_union: str):
+		if struct_union == 'struct':
+			self.set_tag_struct()
+		elif struct_union == 'union':
+			self.set_tag_union()
 
 class analyzer:
 
@@ -147,7 +159,17 @@ class analyzer:
 
 		elif 'decl_spec' in tokens.keys():
 			# struct_specが存在せずdecl_specが存在するとき基本型
-			pass
+			id = " ".join(tokens.decl_spec)
+			# 型情報有無チェック
+			tmp_inf = self._get_type_info_by_id(id)
+			if tmp_inf is None:
+				# 型情報作成
+				tmp_inf = self._make_base_type_info(tokens)
+				#
+				result = self.add_type_info(tmp_inf)
+			else:
+				# 存在するなら何もしない?
+				result = tmp_inf
 		else:
 			# その他ケース?
 			pass
@@ -160,40 +182,50 @@ class analyzer:
 		else:
 			return None
 
-	def _get_type_id(self, tokens: pp.ParseResults) -> str:
-		"""
-		external_declを渡すこと。
-		external_decl情報から型情報を取得して返す。
-		(必要であれば専用のクラスを用意する)
-		"""
-		result = None
-		if 'struct_spec' in tokens.keys():
-			result = tokens.struct_spec.struct_or_union + tokens.struct_spec.struct_id[0]
-		else:
-			result = " ".join(tokens.decl_spec)
+	def _make_base_type_info(self, tokens: pp.ParseResults) -> type_info:
+		new_inf = type_info()
+		# tag
+		new_inf.set_tag_base()
+		# id
+		id = " ".join(tokens.decl_spec)
+		new_inf.id = id
 		#
-		return result
+		return new_inf
 
-	def _make_struct_info(self, tokens: pp.ParseResults) -> type_info:
+	def _make_struct_info_incomplete(self, tokens: pp.ParseResults, prefix: str = "") -> type_info:
+		"""
+		不完全型
+		"""
+		type_inf = type_info()
+		#
+		id = tokens.struct_spec.struct_id[0]
+		type_inf.id = prefix + id
+		#
+		struct_union = tokens.struct_spec.struct_or_union
+		type_inf.set_struct_or_union(struct_union)
+		#
+		return type_inf
+
+	def _make_struct_info(self, tokens: pp.ParseResults, prefix:str = "", unnamed_cnt:int = 0) -> type_info:
 		# grammarチェック
 		if 'struct_spec' not in tokens.keys():
 			# 構文構築上、struct_specが存在しないのはありえない
 			raise Exception("grammar is not preserve rule.")
 		if 'struct_decl_list' not in tokens.struct_spec.keys():
+			# 不完全型のときにこのパスにくる
 			# struct_decl_list が存在しないときは変数宣言
-			id = tokens.struct_spec.struct_id[0]
-			inf = self._get_type_info(id)
-			if inf is not None:
-				inf.id = id
-				inf.set_tag_struct()
+			inf = self._make_struct_info_incomplete(tokens, prefix)
 			return inf
 		# struct/union情報取得
 		new_inf = type_info()
+		# tag
+		new_inf.set_struct_or_union(tokens.struct_spec.struct_or_union)
+		# id 
 		if 'struct_id' in tokens.struct_spec.keys():
-			new_inf.id = tokens.struct_spec.struct_id[0]
+			new_inf.id = prefix + tokens.struct_spec.struct_id[0]
 		else:
-			new_inf.id = "<unnamed>"
-		new_inf.struct_union = tokens.struct_spec.struct_or_union
+			new_inf.id = prefix + "unnamed_" + str(unnamed_cnt)
+			unnamed_cnt += 1
 		# comment取得
 		comment = None
 		if 'comment' in tokens.struct_spec.keys():
@@ -215,7 +247,7 @@ class analyzer:
 			# type-spec
 			if 'struct_spec' in decl.specifier_qualifier_list.keys():
 				# struct_specが存在するときは内部構造体定義
-				inner = self._make_struct_info(decl.specifier_qualifier_list)
+				inner = self._make_struct_info(decl.specifier_qualifier_list, new_inf.id+"@", unnamed_cnt)
 				new_inf.inner_type[inner.id] = inner
 				# 型情報取得
 				mem_inf.type = inner

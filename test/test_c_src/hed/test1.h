@@ -51,3 +51,5 @@ typedef struct bf_type bf_t;
 struct bf_type var1;	// bt変数1
 bt_t var2;				/* bt変数2 */
 const static unsigned char var3 = 0;
+
+struct unknown_t var_unknown;
