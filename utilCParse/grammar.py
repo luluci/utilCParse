@@ -722,13 +722,14 @@ class grammar_def:
 				token.punctuator.semicolon
 				+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 			)
-		)("external_decl")
+		)("external_decl").setParseAction(ev_hdler.external_declaration)
 #		+ pp.Empty().setParseAction(ev_hdler.external_declaration_end)
 	)
 	# 2) "declarator declaration", "declarator {" はfunction-definition
 	external_declaration_lookahead_2 = pp.FollowedBy(
 		declaration_specifiers_la
 		+ declarator
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 		+ (
 			declaration
 			| token.punctuator.left_brace
@@ -737,14 +738,18 @@ class grammar_def:
 	external_declaration_2 = (
 		external_declaration_lookahead_2
 		+ declaration_specifiers
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 		+ declarator
 		+ pp.Optional(declaration_list)
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 		+ pp.nestedExpr("{", "}")
 	)
 	external_declaration = (
 		external_declaration_1
 		| external_declaration_2.ignore(grammar_comment.comment_parser)
 		| grammar_comment.any_comment_parser.copy().setParseAction(ev_hdler.comment)
+		# ここまでにマッチしなかったら適当に読み捨てる
+		| token.identifier
 	)
 	translation_unit = pp.OneOrMore(external_declaration)
 

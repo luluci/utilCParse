@@ -53,3 +53,7 @@ bt_t var2;				/* bt変数2 */
 const static unsigned char var3 = 0;
 
 struct unknown_t var_unknown;
+
+bf_t bf_func(bf_t bf, bf_t const * const bf_ptr);
+STATIC GLOBAL int int_var;
+//EOF
