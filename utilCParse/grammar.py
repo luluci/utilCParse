@@ -5,15 +5,19 @@ import enum
 import pyparsing as pp
 from . import token
 from . import grammar_comment
-from . import analyzer
+from . import parse_action
 
-ev_hdler = analyzer.ev_hdler
+act_hdler = parse_action.parse_action
 
 # .copy().setParseAction(parse_debug)
 # + pp.Empty().setParseAction(parse_debug)
 def parse_debug(loc, var):
 	print("debug:" + str(loc) + "," + str(var))
 
+# マッチしなかったらトークンを読み捨てて次へ行く。
+# 読み捨て分をエラーとして出力しておく。
+def parse_debug_unknown_token(loc, var):
+	print("[parse error]:" + str(loc) + "," + str(var))
 
 class grammar_def:
 
@@ -512,7 +516,6 @@ class grammar_def:
 		+ struct_declarator_list
 		+ token.punctuator.semicolon
 		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
-#		+ pp.Empty().setParseAction(ev_hdler.struct_declare_member_end)
 	)
 	# (6.7.2.1) struct-declaration-list:
 	struct_declaration_list = pp.OneOrMore(struct_declaration)
@@ -722,8 +725,7 @@ class grammar_def:
 				token.punctuator.semicolon
 				+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 			)
-		)("external_decl").setParseAction(ev_hdler.external_declaration)
-#		+ pp.Empty().setParseAction(ev_hdler.external_declaration_end)
+		)("external_decl").setParseAction(act_hdler.external_declaration)
 	)
 	# 2) "declarator declaration", "declarator {" はfunction-definition
 	external_declaration_lookahead_2 = pp.FollowedBy(
@@ -747,10 +749,10 @@ class grammar_def:
 	external_declaration = (
 		external_declaration_1
 		| external_declaration_2.ignore(grammar_comment.comment_parser)
-		| grammar_comment.any_comment_parser.copy().setParseAction(ev_hdler.comment)
+		| grammar_comment.any_comment_parser.copy().setParseAction(act_hdler.comment)
 		# ここまでにマッチしなかったら適当に読み捨てる
-		| token.identifier
+		| token.identifier.copy().setParseAction(parse_debug_unknown_token)
 	)
-	translation_unit = pp.OneOrMore(external_declaration)
+	translation_unit = pp.OneOrMore(external_declaration) + pp.Regex(r".*").setParseAction(parse_debug_unknown_token)
 
 parser = grammar_def.translation_unit

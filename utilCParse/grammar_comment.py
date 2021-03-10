@@ -1,7 +1,4 @@
 import pyparsing as pp
-from . import analyzer as analyzer_mod
-
-ev_hdler = analyzer_mod.ev_hdler
 
 class grammar_comment_def:
 	single_line_comment_begin = pp.Literal("//")

@@ -1,7 +1,10 @@
-from operator import ne, truediv
 from typing import List, Dict
 import enum
 import pyparsing as pp
+from . import parse_action
+
+# PyParsing parseActionHandler管理クラス インスタンス
+act_hdler = parse_action.parse_action
 
 class var_info:
 	"""
@@ -58,6 +61,12 @@ class analyzer:
 		# 情報テーブル
 		self.var_info_list: Dict[str, var_info] = {}
 		self.type_info_list: Dict[str, type_info] = {}
+		self._init_hanlder()
+
+	def _init_hanlder(self):
+		# ハンドラ登録
+		act_hdler.hdl_comment = self.comment
+		act_hdler.hdl_external_declaration = self.external_declaration
 
 	def add_var_info(self, item: var_info):
 		self.var_info_list[item.id] = item
@@ -289,7 +298,3 @@ class analyzer:
 			if token in {'//', '/*'}:
 				find = True
 		return None
-
-
-
-ev_hdler = analyzer()

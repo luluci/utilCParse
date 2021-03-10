@@ -1,5 +1,4 @@
 import pathlib
-
 import utilCParse
 
 """
@@ -22,6 +21,7 @@ if True:
 	# parser
 	parser = utilCParse.parser
 	#parser = utilCParse.grammar.grammar_def.expression[1,...]
+	analayzer = utilCParse.analyzer()
 
 	# run
 	text = ""
