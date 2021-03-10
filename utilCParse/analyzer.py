@@ -1,10 +1,18 @@
 from typing import List, Dict
 import enum
+import pathlib
 import pyparsing as pp
 from . import parse_action
+from . import grammar
+from . import grammar_pp
 
 # PyParsing parseActionHandler管理クラス インスタンス
 act_hdler = parse_action.parse_action
+# parser
+parser = pp.OneOrMore(
+	grammar.parser
+	| grammar_pp.pp_parser
+)
 
 class var_info:
 	"""
@@ -16,6 +24,9 @@ class var_info:
 		self.type: type_info = None
 		self.pointer = None
 		self.comment: str = None
+		# 解析元ファイル情報
+		self.dir_path: pathlib.Path = None
+		self.file_path: pathlib.Path = None
 
 
 class type_info:
@@ -37,6 +48,9 @@ class type_info:
 		self.member: Dict[str,var_info] = {}
 		# 内部構造体定義情報
 		self.inner_type: Dict[str, type_info] = {}
+		# 解析元ファイル情報
+		self.dir_path: pathlib.Path = None
+		self.file_path: pathlib.Path = None
 
 	def set_tag_base(self):
 		self.tag = type_info.TAG.base
@@ -59,26 +73,56 @@ class analyzer:
 		# 単独出現コメント
 		self._comment = None
 		# 情報テーブル
-		self.var_info_list: Dict[str, var_info] = {}
-		self.type_info_list: Dict[str, type_info] = {}
+		# [id / filepath / *_info] の階層で構築する
+		self.var_info_list: Dict[str, Dict[str, var_info]] = {}
+		self.type_info_list: Dict[str, Dict[str, type_info]] = {}
+		# ハンドラ初期化
 		self._init_hanlder()
 
 	def _init_hanlder(self):
 		# ハンドラ登録
-		act_hdler.hdl_comment = self.comment
-		act_hdler.hdl_external_declaration = self.external_declaration
+		act_hdler.hdl_comment = self._hdl_comment
+		act_hdler.hdl_external_declaration = self._hdl_external_declaration
 
-	def add_var_info(self, item: var_info):
-		self.var_info_list[item.id] = item
 
-	def add_type_info(self, item: type_info) -> type_info:
-		self.type_info_list[item.id] = item
-		return self.type_info_list[item.id]
+	def analyze_dir(self, dir_path: pathlib.Path, glob:str = '**/*', encoding:str = 'utf-8'):
+		self._dir_path = dir_path
+		# フォルダ探索
+		for path in dir_path.glob(glob):
+			if path.is_file():
+				# 相対パスでファイルパス情報を作成
+				self._file_path_rel = path.relative_to(self._dir_path)
+				# ファイルからテキスト取得
+				text = ""
+				with open(path, "r", encoding=encoding) as fp:
+					text = fp.read()
+				# テキスト解析
+				ret = parser.parseString(text)
+				print(ret)
 
-	def comment(self, loc: int, tokens: pp.ParseResults):
+	def _add_var_info(self, item: var_info):
+		# ファイル情報追記
+		item.dir_path = self._dir_path
+		item.file_path = self._file_path_rel
+		# 
+		if item.id not in self.var_info_list.keys():
+			self.var_info_list[item.id] = {}
+		self.var_info_list[item.id][str(item.file_path)] = item
+
+	def _add_type_info(self, item: type_info) -> type_info:
+		# ファイル情報追記
+		item.dir_path = self._dir_path
+		item.file_path = self._file_path_rel
+		#
+		if item.id not in self.type_info_list.keys():
+			self.type_info_list[item.id] = {}
+		self.type_info_list[item.id][str(item.file_path)] = item
+		return self.type_info_list[item.id][str(item.file_path)]
+
+	def _hdl_comment(self, loc: int, tokens: pp.ParseResults):
 		self._comment = tokens[0][1]
 
-	def external_declaration(self, loc: int, tokens: pp.ParseResults):
+	def _hdl_external_declaration(self, loc: int, tokens: pp.ParseResults):
 		# グローバル定義の開始
 		# begin/endはempty()で実装してるので、次のtokenと同じlocになる
 		# よって、locチェックしない
@@ -89,25 +133,25 @@ class analyzer:
 			raise Exception("grammar is not preserve rule.")
 
 		if 'typedef' in tokens.external_decl.keys():
-			self.external_decl_typedef(loc, tokens.external_decl)
+			self._analyze_external_decl_typedef(loc, tokens.external_decl)
 		elif 'struct_spec' in tokens.external_decl.keys():
-			self.external_decl_struct(loc, tokens.external_decl)
+			self._analyze_external_decl_struct(loc, tokens.external_decl)
 		else:
-			self.external_decl_var(loc, tokens.external_decl)
+			self._analyze_external_decl_var(loc, tokens.external_decl)
 		# 事前コメントクリア
 		self._comment = None
 
-	def external_decl_typedef(self, loc: int, tokens: pp.ParseResults):
+	def _analyze_external_decl_typedef(self, loc: int, tokens: pp.ParseResults):
 		pass
 
-	def external_decl_struct(self, loc: int, tokens: pp.ParseResults):
+	def _analyze_external_decl_struct(self, loc: int, tokens: pp.ParseResults):
 		# tokensを解析して構造体情報を取得
 		type_inf = self._get_type_info(tokens)
 		# declaratorが存在するときは変数情報も登録
 		if 'declarator_list' in tokens.keys():
 			self._make_var_info(tokens, type_inf)
 
-	def external_decl_var(self, loc: int, tokens: pp.ParseResults):
+	def _analyze_external_decl_var(self, loc: int, tokens: pp.ParseResults):
 		# declaration-specifiers
 		# 型情報取得
 		type_inf = self._get_type_info(tokens)
@@ -136,7 +180,7 @@ class analyzer:
 			# comment
 			new_var.comment = comment
 			# 追加
-			self.add_var_info(new_var)
+			self._add_var_info(new_var)
 
 	def _make_type_info(self, tokens: pp.ParseResults) -> type_info:
 		"""
@@ -161,7 +205,7 @@ class analyzer:
 				# 型情報作成
 				tmp_inf = self._make_struct_info(tokens)
 				#
-				result = self.add_type_info(tmp_inf)
+				result = self._add_type_info(tmp_inf)
 			else:
 				# 存在するなら何もしない?
 				result = tmp_inf
@@ -175,7 +219,7 @@ class analyzer:
 				# 型情報作成
 				tmp_inf = self._make_base_type_info(tokens)
 				#
-				result = self.add_type_info(tmp_inf)
+				result = self._add_type_info(tmp_inf)
 			else:
 				# 存在するなら何もしない?
 				result = tmp_inf
