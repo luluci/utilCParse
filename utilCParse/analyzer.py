@@ -4,15 +4,11 @@ import pathlib
 import pyparsing as pp
 from . import parse_action
 from . import grammar
-from . import grammar_pp
 
 # PyParsing parseActionHandler管理クラス インスタンス
 act_hdler = parse_action.parse_action
 # parser
-parser = pp.OneOrMore(
-	grammar.parser
-	| grammar_pp.pp_parser
-)
+parser = grammar.parser
 
 class var_info:
 	"""
@@ -90,6 +86,7 @@ class analyzer:
 		# フォルダ探索
 		for path in dir_path.glob(glob):
 			if path.is_file():
+				print("analyze:[" + str(path) + "]")
 				# 相対パスでファイルパス情報を作成
 				self._file_path_rel = path.relative_to(self._dir_path)
 				# ファイルからテキスト取得
@@ -209,6 +206,10 @@ class analyzer:
 			else:
 				# 存在するなら何もしない?
 				result = tmp_inf
+
+		elif 'enum_spec' in tokens.keys():
+			# とりあえずenumは無視
+			pass
 
 		elif 'decl_spec' in tokens.keys():
 			# struct_specが存在せずdecl_specが存在するとき基本型

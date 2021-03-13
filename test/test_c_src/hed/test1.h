@@ -12,6 +12,23 @@ static const volatile uint32_t u32_var = 3;
 typedef void *(func1_t)(uint32_t, int16_t *);
 typedef void *(*funcptr1_t)(uint32_t, int16_t *);
 
+// enum
+enum					// def ENUM_1
+{						/* 1st hogehoge */
+	ENUM_1_1 = 0,		// 1-1 => ?
+	ENUM_1_2,			/* 1-2 => ?? */
+	ENUM_1_3 = 100,		// 1-3
+	// max size
+	ENUM_1_SIZE,		// enum1 size
+} enum1_var;			// enum1 variable
+// enum 2nd
+enum enum_2 {				/* def ENUM_2 */
+	ENUM2_1 = (ENUM_1_SIZE),
+	ENUM2_2 = (ENUM_1_2 + 100),
+	ENUM2_3 = (ENUM2_2 + 1000),
+};
+enum enum_2 enum2_var;
+
 // hoge定義
 struct hoge {/* def_hoge */
 	// bytes

@@ -1,12 +1,20 @@
-int hoge;
+int *hoge;
 
 
 // preprocessor
+#define DEBUG_MODE				/* DEBUGモード */
 #if 1
-	#include <stdio.h>
-	# include <stdint.h>
+	#include <stdio.h>			//【コメント】
+	# include <stdint.h>		//<! ※
 #else
 	# include <stdint.h>
+#endif
+#ifdef DEBUG_MODE
+	#pragma xxx
+	#undef DEBUG_MODE
+#endif
+#ifndef DEBUG_MODE
+	#error xxx
 #endif
 
 // 変数定義

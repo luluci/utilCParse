@@ -4,6 +4,7 @@
 import enum
 import pyparsing as pp
 from . import token
+from . import grammar_pp
 from . import grammar_comment
 from . import parse_action
 
@@ -529,6 +530,7 @@ class grammar_def:
 	)
 	struct_or_union_specifier_2 = (
 		token.identifier.copy()("struct_id")
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 		+ pp.Optional(struct_or_union_specifier_1)
 	)
 	struct_or_union_specifier <<= pp.Group(
@@ -578,38 +580,46 @@ class grammar_def:
 
 	# (6.7.2.2) enumerator:
 	enumerator = (
-		token.constant_def.enumeration_constant
+		token.constant_def.enumeration_constant.copy()("enum_id")
 		+ pp.Optional(
 			token.punctuator.simple_assign_op
-			+ constant_expression
-		)
+			# expression解析は再帰し過ぎで死ぬ
+#			+ constant_expression
+			+ pp.CharsNotIn(',}')
+		)("enum_init")
 	)
 	# (6.7.2.2) enumerator-list:
 	enumerator_list = (
-		enumerator
-		+ pp.Optional(
+		pp.ZeroOrMore(grammar_comment.any_comment_parser)("comment_pre")
+		+ enumerator
+		+ pp.ZeroOrMore(
 			token.punctuator.comma
-			+ enumerator
+			+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
+			+ pp.ZeroOrMore(grammar_comment.any_comment_parser)("comment_pre")
+			+ pp.Optional(enumerator)
 		)
 	)
 	# (6.7.2.2) enum-specifier:
 	enum_specifier_1 = (
 		token.punctuator.left_brace
-		+ enumerator_list
-		+ pp.Optional(token.punctuator.comma)
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
+		+ pp.Group(enumerator_list)("enum_list")
 		+ token.punctuator.right_brace
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 	)
 	enum_specifier_2 = (
-		token.identifier
+		token.identifier.copy()("enum_id")
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 		+ pp.Optional(enum_specifier_1)
 	)
-	enum_specifier <<= (
-		token.keyword.enum_
+	enum_specifier <<= pp.Group(
+		token.keyword.enum_("enum")
+		+ pp.Optional(grammar_comment.one_line_comment_parser)("comment")
 		+ (
 			enum_specifier_2
 			| enum_specifier_1
 		)
-	)
+	)("enum_spec")
 
 	# (6.7) declaration:
 	# 実質不使用
@@ -747,7 +757,8 @@ class grammar_def:
 		+ pp.nestedExpr("{", "}")
 	)
 	external_declaration = (
-		external_declaration_1
+		grammar_pp.parser
+		| external_declaration_1
 		| external_declaration_2.ignore(grammar_comment.comment_parser)
 		| grammar_comment.any_comment_parser.copy().setParseAction(act_hdler.comment)
 		# ここまでにマッチしなかったら適当に読み捨てる
