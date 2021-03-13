@@ -7,6 +7,7 @@ from . import token
 from . import grammar_pp
 from . import grammar_comment
 from . import parse_action
+pp.ParserElement.enablePackrat()
 
 act_hdler = parse_action.parse_action
 

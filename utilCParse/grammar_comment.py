@@ -1,4 +1,5 @@
 import pyparsing as pp
+pp.ParserElement.enablePackrat()
 
 class grammar_comment_def:
 	single_line_comment_begin = pp.Literal("//")

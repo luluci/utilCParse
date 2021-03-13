@@ -5,6 +5,7 @@ grammar定義
 
 from . import token
 import pyparsing as pp
+pp.ParserElement.enablePackrat()
 
 pp_dir = token.preprocessing_directive
 

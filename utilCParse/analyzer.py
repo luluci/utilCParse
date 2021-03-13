@@ -4,6 +4,7 @@ import pathlib
 import pyparsing as pp
 from . import parse_action
 from . import grammar
+pp.ParserElement.enablePackrat()
 
 # PyParsing parseActionHandler管理クラス インスタンス
 act_hdler = parse_action.parse_action
